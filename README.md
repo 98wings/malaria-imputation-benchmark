@@ -12,8 +12,9 @@ Article: submitted to *BMC Medical Research Methodology* (reference and DOI to b
 ## Data availability
 
 The weekly counts come from the DHIS2 system of the Ministry of Public Health of
-Cameroon. **They are not included in this repository**, under the access conditions
-set by the Ministry. They are available from the corresponding author on reasonable
+Cameroon. Two extractions were used: the first, in January 2023, covers 2018-2022;
+the second, in October 2026, covers 2021-2025. **The counts are not included in this
+repository**, under the access conditions set by the Ministry. They are available from the corresponding author on reasonable
 request, with the authorisation of the Ministry of Public Health.
 
 For the same reason, the repository leaves out every file that contains the observed
