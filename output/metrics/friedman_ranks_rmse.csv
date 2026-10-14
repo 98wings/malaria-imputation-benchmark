@@ -1,0 +1,11 @@
+method,mean_rank
+Kalman,1.2166666666666666
+LinearInterp,2.15
+MissForest_ST,3.216666666666667
+SeasonalDecomp,3.7
+MissForest,4.766666666666667
+MICE_precision,6.6
+MICE_deterministic,7.083333333333333
+MICE_inference,8.116666666666667
+KNN,8.15
+Mean,10

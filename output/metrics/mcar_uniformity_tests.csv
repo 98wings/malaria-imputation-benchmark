@@ -1,0 +1,5 @@
+test,variable,n,n_fail,expected,statistic,p_value,mean_p
+binomial_failures,p_time + p_values_ks,120,3,6,NA,0.9424945916619203,NA
+ks_uniformity,p_districts,60,NA,NA,0.08965827454873805,0.7203872753046613,0.5154779400636117
+ks_uniformity,p_time,60,NA,NA,0.22556189698140683,0.004461665487688298,0.618912907416991
+ks_uniformity,p_values_ks,60,NA,NA,0.06200068409903409,0.9641746162036313,0.49624979498712274

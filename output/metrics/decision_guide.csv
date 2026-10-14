@@ -1,0 +1,7 @@
+situation,method,rationale
+Isolated gaps (1 week),Linear interpolation or Kalman,"mean ranks 2.05 and 1.05, not distinguishable from the best"
+"Prolonged gaps (8 weeks), accuracy of counts","MissForest-ST (or MissForest, less robust under MNAR), with seasonal and trend predictors",with 8-week gaps MissForest-ST moves from rank 3 to 1 and MissForest from rank 7 to 2 (of 24 method-variant combinations); best at 8 weeks: MissForest-ST SeasonalTrend; mechanism arm: see Table 3; peak detection: see the next row
+Priority on epidemic peak detection,Seasonal decomposition or Linear interpolation (isolated gaps); Seasonal decomposition (8-week gaps),"isolated gaps: Youden 0.691 and 0.691 (paired Wilcoxon p = 0.94); 8-week gaps: Youden 0.503 against 0.400 for MissForest-ST, the most accurate method (higher in 48 of 60 blocks, p = 4e-06)"
+Distributional fidelity required (variance preserved),Seasonal decomposition,"variance ratio 0.968 (pooled over the eleven districts), closest to 1; the best MICE variant reaches only 0.904 because every MICE variant scored here is an AVERAGED completion"
+Modest hardware / limited technical skill,Linear interpolation,"0.01 s per imputation, no hyperparameter to tune"
+TO BE AVOIDED in all circumstances,Mean imputation,sensitivity = 0.000: not a single epidemic peak detected

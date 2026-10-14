@@ -1,0 +1,2 @@
+periodid,district,row_index,source_value,source_value_origin,retained_value,replacement_rule,excluded_from_metrics,exclusion_reason,retained_role
+2019-09-01,Belel,87,156.098039215686,Belel 2019 annual mean (imputation applied upstream of this study),74,"linear interpolation between adjacent weeks: (79+70)/2 = 74.5, rounded",TRUE,never observed: cannot serve as ground truth,predictor for other cells and reference series for forecasting

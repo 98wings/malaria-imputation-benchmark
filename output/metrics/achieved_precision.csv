@@ -1,0 +1,2 @@
+gap_length,variant,comparison,mean_difference,sd_diff,half_ci95,n
+1,NoTime,MissForest - LinearInterp,11.502218964422878,1.9944695880120782,0.5046704365940125,60

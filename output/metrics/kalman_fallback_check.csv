@@ -1,0 +1,3 @@
+arm,n_masks,n_series,n_fallback,mask,districts_fallback
+main,180,1980,0,ALL,NA
+mechanism,60,660,0,ALL,NA

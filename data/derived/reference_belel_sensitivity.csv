@@ -1,0 +1,8 @@
+method,estimate,difference_vs_retained
+Linear interpolation (RETAINED),74.5,0
+Seasonal decomposition,69.7,-4.8
+MissForest + period,85.4,10.9
+KNN (k=7),87.1,12.6
+MissForest,87.9,13.4
+MICE deterministic,121.2,46.7
+Annual mean (source value),156.1,81.6

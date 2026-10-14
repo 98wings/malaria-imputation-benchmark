@@ -1,0 +1,11 @@
+method,variant
+KNN,SeasonalTrend
+Kalman,NoTime
+LinearInterp,NoTime
+MICE_deterministic,SeasonalTrend
+MICE_inference,SeasonalTrend
+MICE_precision,SeasonalTrend
+Mean,NoTime
+MissForest,SeasonalTrend
+MissForest_ST,SeasonalTrend
+SeasonalDecomp,NoTime

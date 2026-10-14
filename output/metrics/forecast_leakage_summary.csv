@@ -1,0 +1,4 @@
+criterion,spearman_with_MAE,p_value,n_negative_of_24,lookback_weeks
+degradation_h4_all,0.9442508710801393,4.299590227819122e-12,12,4
+degradation_h4_clean,0.35540069686411146,0.08832322744663793,10,4
+degradation_h4_exposed,0.9398954703832751,9.636011936146898e-12,12,4

@@ -1,0 +1,77 @@
+# .gitignore for the code deposit (GitHub / Zenodo)
+# Rule: the DHIS2 data of the Ministry of Public Health of Cameroon are NOT published.
+# Anything that contains observed weekly counts, or lets them be rebuilt, stays out.
+# The same names are removed from the history by purge_paths.txt (git filter-repo).
+
+# ---------------------------------------------------------------- data that cannot be published
+# raw DHIS2 extracts
+data/raw/
+# reference series (observed weekly counts, 417 x 11) and every intermediate version
+**/reference_adamaoua_*
+# individual observed cells (the five cells that differ between the two extracts)
+**/reference_2018_2025_overlap_differences.csv
+# imputed datasets: the observed cells are kept as they are, so every file contains the counts
+**/imputed/
+**/imputed_examples/
+# per-district, per-mask signed errors: with the masks, the Mean and LinearInterp rows give
+# linear equations in the true counts, and the whole series can be rebuilt exactly
+# (test of 13/10/2026: 4 587 cells recovered to within 1e-12)
+**/metrics_by_district.csv
+**/district_mechanism.csv
+**/district_mar_strong.csv
+# figure of the regional weekly series, not used in the article
+**/regional_total_*.png
+# names used by the earlier versions of the project (raw extracts, imputed matrices)
+**/donnees_brutes/
+**/resultats/imputes/
+**/testIMPmoy/
+*paludisme_*.csv
+*[Pp]alu_*.csv
+*Palu_Adamaoua*
+*malaria_2021_2025*
+*Dist_S*
+data (?).csv
+# map boundaries (third-party licence); the script 08_district_map.R stays
+data/geo/
+*.geojson
+# spreadsheets, archives and R workspaces may hold copies of the data
+*.xls
+*.xlsx
+*.rar
+*.zip
+*.7z
+*.tgz
+*.tar.gz
+*.RData
+*.rda
+.Rhistory
+
+# ---------------------------------------------------------------- manuscript and working files
+# manuscript, drafts, review notes: not part of the code deposit,
+# except the two scripts that build the figures and the additional files
+redaction/*
+!redaction/figures/
+redaction/figures/*
+!redaction/figures/make_figures.py
+!redaction/supplements/
+redaction/supplements/*
+!redaction/supplements/build_supplements.py
+_Archives/
+_to_delete/
+_tmp_claude/
+_donnees_privees_sauvegarde/
+sn-article-template/
+# internal consistency check that reads a sibling project folder
+docs/_concordance_check.py
+
+# ---------------------------------------------------------------- R, Python, LaTeX by-products
+.Rproj.user/
+__pycache__/
+*.pyc
+*.aux
+*.log
+*.out
+*.synctex.gz
+.DS_Store
+Thumbs.db
+desktop.ini

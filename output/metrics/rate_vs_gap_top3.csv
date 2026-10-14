@@ -1,0 +1,10 @@
+missing_rate,gap_length,top3
+5,1,Kalman|NoTime ; LinearInterp|NoTime ; MissForest_ST|Seasonal
+5,4,Kalman|NoTime ; LinearInterp|NoTime ; MissForest_ST|SeasonalTrend
+5,8,MissForest|SeasonalTrend ; MissForest_ST|SeasonalTrend ; MissForest_ST|Seasonal
+10,1,Kalman|NoTime ; LinearInterp|NoTime ; MissForest_ST|SeasonalTrend
+10,4,Kalman|NoTime ; LinearInterp|NoTime ; MissForest_ST|SeasonalTrend
+10,8,MissForest_ST|SeasonalTrend ; MissForest|SeasonalTrend ; MissForest_ST|Seasonal
+20,1,Kalman|NoTime ; LinearInterp|NoTime ; MissForest_ST|SeasonalTrend
+20,4,Kalman|NoTime ; LinearInterp|NoTime ; MissForest_ST|SeasonalTrend
+20,8,MissForest_ST|SeasonalTrend ; MissForest|SeasonalTrend ; MissForest_ST|Seasonal

@@ -1,0 +1,2 @@
+gap_length,comparison,n_blocks,mae_missforest_st,mae_kalman,mean_diff,pct_diff_vs_kalman,blocks_won_by_missforest_st,wilcoxon_V,wilcoxon_p,sign_test_p
+8,MissForest_ST SeasonalTrend vs Kalman NoTime,60,44.72990845299913,48.13048177701561,-3.400573324016477,-7.065321597591815,51,146,1.536905495581314e-8,3.085035609438911e-8

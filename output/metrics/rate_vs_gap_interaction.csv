@@ -1,0 +1,4 @@
+term,df,ss,share_of_total_ss,ci_lo,ci_hi,normalisation
+method_x_gap,46,0.47604899556197844,0.048211257263513184,0.4214013152676436,0.5535386611326694,"24x3x3 table of mean log(MAE) over 20 reps; SS = 3*sum(residual^2); bootstrap of reps within cells, B = 2000"
+method_x_rate,46,0.11113886407241502,0.011255447270599751,0.0940272266822553,0.14051931930114137,"24x3x3 table of mean log(MAE) over 20 reps; SS = 3*sum(residual^2); bootstrap of reps within cells, B = 2000"
+ratio_gap_over_rate,NA,4.28337107397281,NA,3.2282284847189153,5.359085098747222,"24x3x3 table of mean log(MAE) over 20 reps; SS = 3*sum(residual^2); bootstrap of reps within cells, B = 2000"
