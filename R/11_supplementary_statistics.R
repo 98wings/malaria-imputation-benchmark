@@ -1061,4 +1061,40 @@ print(fried_nt, width = Inf)
 print(ranks_nt |> filter(gap_length == 8), width = Inf)
 print(kal_li, width = Inf)
 
-cat(sprintf("\n11 done: %d files written.\n", 9 + 3 + 3 + 1 + 3 + 1 + 4 + if (RUN_A3) 4 else 0))
+# (c) Step 8b (report R2-M8, Discussion): which part of the retained block,
+#     the seasonal terms or the trend index, carries the lead of the two
+#     forests at 8 weeks. Each forest under each of its three blocks is paired,
+#     block by block, with Kalman, LinearInterp and SeasonalDecomp (NoTime is
+#     their only block). No imputation is recomputed.
+g8  <- metrics |> filter(gap_length == 8)
+ref <- g8 |>
+  filter(method %in% c("Kalman", "LinearInterp", "SeasonalDecomp"),
+         variant == "NoTime") |>
+  select(rep, missing_rate, method, MAE) |>
+  pivot_wider(names_from = method, values_from = MAE)
+stopifnot(nrow(ref) == 60, !anyNA(ref))
+forest_blk <- list()
+for (me in c("MissForest", "MissForest_ST")) {
+  for (v in c("NoTime", "Seasonal", "SeasonalTrend")) {
+    d <- g8 |> filter(method == me, variant == v) |>
+      select(rep, missing_rate, MAE) |>
+      inner_join(ref, by = c("rep", "missing_rate"))
+    stopifnot(nrow(d) == 60, !anyNA(d))
+    for (cmp in c("Kalman", "LinearInterp", "SeasonalDecomp")) {
+      diff <- d$MAE - d[[cmp]]
+      forest_blk[[length(forest_blk) + 1]] <- tibble(
+        gap_length = 8, method = me, variant = v, comparator = cmp,
+        n_blocks = nrow(d), mae_forest = mean(d$MAE),
+        mae_comparator = mean(d[[cmp]]), mean_diff = mean(diff),
+        pct_diff = 100 * mean(diff) / mean(d[[cmp]]),
+        blocks_won_by_forest = sum(diff < 0), blocks_tied = sum(diff == 0),
+        wilcoxon_p = wilcox.test(d$MAE, d[[cmp]], paired = TRUE)$p.value,
+        sign_test_p = binom.test(sum(diff < 0), sum(diff != 0))$p.value)
+    }
+  }
+}
+forest_blk <- bind_rows(forest_blk)
+write_csv(forest_blk, file.path(MET, "paired_forest_blocks_gap8.csv"))
+print(forest_blk |> filter(comparator == "Kalman"), width = Inf)
+
+cat(sprintf("\n11 done: %d files written.\n", 9 + 3 + 3 + 1 + 3 + 1 + 4 + 1 + if (RUN_A3) 4 else 0))
