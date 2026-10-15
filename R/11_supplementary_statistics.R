@@ -971,4 +971,94 @@ write_csv(bind_rows(kalman_summary |> mutate(mask = "ALL"),
           file.path(MET, "kalman_fallback_check.csv"))
 print(kalman_summary)
 
-cat(sprintf("\n11 done: %d files written.\n", 9 + 3 + 3 + 1 + 3 + 1 + if (RUN_A3) 4 else 0))
+
+## -------------------------------------------------------------------------
+## 13. NoTime ARM WITHIN EACH GAP LENGTH, AND KALMAN vs LINEAR INTERPOLATION
+##     (step 8b, October 2026: report claude/rapport_etape8b.md, R2-M8, R2-M2)
+## -------------------------------------------------------------------------
+#  NO imputation is recomputed: this section only re-reads metrics_long.csv.
+#  (a) R2-M8. Section 7 ranks every method under its retained predictor block
+#      (selected_variant.csv). Here every method is taken with the NoTime
+#      block only, so that no method receives seasonal or trend covariates;
+#      the three temporal methods (Kalman, LinearInterp, SeasonalDecomp) have
+#      only this block. Same design as section 7: 10 methods, blocks =
+#      repetition x missingness rate (60 blocks), MAE criterion, Nemenyi CD.
+#  (b) R2-M2. Paired comparison of Kalman and LinearInterp within each gap
+#      length (NoTime is their only block): blocks won, Wilcoxon signed-rank
+#      and sign tests, as in section 4.
+
+fried_nt <- list(); ranks_nt <- list(); pairs_nt <- list(); kal_li <- list()
+for (gap in CFG$gap_lengths) {
+  dg  <- metrics |> filter(gap_length == gap, variant == "NoTime")
+  mat <- fr_matrix(dg)
+  stopifnot(ncol(mat) == 10, nrow(mat) == 60, !anyNA(mat))
+  k   <- ncol(mat); N <- nrow(mat)
+  cd  <- qtukey(0.95, k, Inf) / sqrt(2) * sqrt(k * (k + 1) / (6 * N))
+  ft  <- friedman.test(mat)
+  fried_nt[[length(fried_nt) + 1]] <- tibble(
+    gap_length = gap, block = "NoTime", n_blocks = N, k_methods = k,
+    chi_squared = unname(ft$statistic), df = unname(ft$parameter),
+    p_value = ft$p.value, cd = cd)
+
+  mr <- colMeans(t(apply(mat, 1, rank)))
+  ranks_nt[[length(ranks_nt) + 1]] <- tibble(
+    gap_length = gap, method = names(mr), mean_rank = unname(mr),
+    MAE = unname(colMeans(mat)[names(mr)])) |>
+    arrange(mean_rank)
+
+  pv <- frdAllPairsNemenyiTest(mat)$p.value
+  for (a in rownames(pv)) for (b in colnames(pv)) if (!is.na(pv[a, b]))
+    pairs_nt[[length(pairs_nt) + 1]] <- tibble(
+      gap_length = gap, method_a = a, method_b = b,
+      rank_diff = abs(mr[[a]] - mr[[b]]), p_nemenyi = pv[a, b],
+      exceeds_cd = abs(mr[[a]] - mr[[b]]) > cd)
+
+  # (b) Kalman vs LinearInterp, paired by block
+  kl <- dg |> filter(method %in% c("Kalman", "LinearInterp")) |>
+    select(rep, missing_rate, method, MAE) |>
+    pivot_wider(names_from = method, values_from = MAE) |>
+    mutate(diff = Kalman - LinearInterp)
+  stopifnot(nrow(kl) == 60, !anyNA(kl$diff))
+  wt <- wilcox.test(kl$Kalman, kl$LinearInterp, paired = TRUE)
+  bt <- binom.test(sum(kl$diff < 0), sum(kl$diff != 0), p = 0.5)
+  kal_li[[length(kal_li) + 1]] <- tibble(
+    gap_length = gap, n_blocks = nrow(kl),
+    mae_kalman = mean(kl$Kalman), mae_linearinterp = mean(kl$LinearInterp),
+    mean_diff = mean(kl$diff),
+    pct_diff_vs_linearinterp = 100 * mean(kl$diff) / mean(kl$LinearInterp),
+    blocks_won_by_kalman = sum(kl$diff < 0), blocks_tied = sum(kl$diff == 0),
+    wilcoxon_V = unname(wt$statistic), wilcoxon_p = wt$p.value,
+    sign_test_p = bt$p.value)
+}
+fried_nt <- bind_rows(fried_nt)
+ranks_nt <- bind_rows(ranks_nt)
+pairs_nt <- bind_rows(pairs_nt)
+kal_li   <- bind_rows(kal_li)
+
+# Consistency checks.
+# Kalman, LinearInterp and SeasonalDecomp have only the NoTime block, so their
+# mean MAE must equal the one used in section 7.
+chk_mae <- metrics |>
+  filter(method %in% c("Kalman", "LinearInterp", "SeasonalDecomp")) |>
+  group_by(gap_length, method) |> summarise(m = mean(MAE), .groups = "drop") |>
+  inner_join(ranks_nt, by = c("gap_length", "method"))
+stopifnot(nrow(chk_mae) == 9, max(abs(chk_mae$m - chk_mae$MAE)) < 1e-9)
+# For 1-week gaps, the NoTime ranks must match friedman_ranks_notime.csv (03).
+f_nt03 <- file.path(MET, "friedman_ranks_notime.csv")
+if (file.exists(f_nt03)) {
+  chk_nt <- read_csv(f_nt03, show_col_types = FALSE) |>
+    inner_join(filter(ranks_nt, gap_length == 1), by = "method")
+  if (nrow(chk_nt) != 10 ||
+      max(abs(chk_nt$mean_rank.x - chk_nt$mean_rank.y)) > 1e-9)
+    warning("NoTime ranks at 1 week differ from friedman_ranks_notime.csv (03)")
+}
+
+write_csv(fried_nt, file.path(MET, "friedman_notime_by_gap.csv"))
+write_csv(ranks_nt, file.path(MET, "friedman_ranks_notime_by_gap.csv"))
+write_csv(pairs_nt, file.path(MET, "nemenyi_pairs_notime_by_gap.csv"))
+write_csv(kal_li,   file.path(MET, "paired_kalman_linearinterp.csv"))
+print(fried_nt, width = Inf)
+print(ranks_nt |> filter(gap_length == 8), width = Inf)
+print(kal_li, width = Inf)
+
+cat(sprintf("\n11 done: %d files written.\n", 9 + 3 + 3 + 1 + 3 + 1 + 4 + if (RUN_A3) 4 else 0))
