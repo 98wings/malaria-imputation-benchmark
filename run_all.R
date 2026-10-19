@@ -12,9 +12,10 @@
 #  TOTAL RUNTIME at CFG$n_rep = 20: roughly 7 hours.
 #  For a dry run, set CFG$n_rep = 2 in R/functions.R first (~30 min).
 #
-#  Steps 6 to 8 are the mechanism sensitivity analysis (supplementary
-#  material S4). Step 9 is the optional choropleth map, which needs `sf`
-#  and an internet connection; it is skipped if either is unavailable.
+#  Steps 4 to 7 are the reduced mechanism design (Additional files 2 and 6).
+#  Step 8 (R/04) comes after them because its decision guide quotes the
+#  reduced mechanism design. The choropleth map (R/08) is optional and not
+#  run here: it needs `sf` and an internet connection.
 ###############################################################################
 
 STEPS <- list(
@@ -24,8 +25,6 @@ STEPS <- list(
        what = "Run the benchmark (masks, imputations, metrics)", minutes = 300),
   list(file = "R/03_benchmark_analysis.R",
        what = "Analysis, statistical tests, downstream forecasting", minutes = 60),
-  list(file = "R/04_final_analysis.R",
-       what = "District analysis, decision guide, figures",   minutes = 3),
   list(file = "R/05_mechanism_sensitivity.R",
        what = "Mechanism sensitivity: MAR and MNAR arms",      minutes = 75),
   list(file = "R/06_mechanism_diagnostics.R",
@@ -34,8 +33,10 @@ STEPS <- list(
        what = "Strong MAR arm, calibrated to MNAR intensity",  minutes = 35),
   list(file = "R/06_mechanism_diagnostics.R",
        what = "Diagnostics again, now including MAR_strong",   minutes = 1),
+  list(file = "R/04_final_analysis.R",
+       what = "District analysis, decision guide, figures",   minutes = 3),
   list(file = "R/11_supplementary_statistics.R",
-       what = "Calibration curve, paired test, reduced-design CD", minutes = 2),
+       what = "Supplementary statistics (Additional files 2 and 6)", minutes = 20),
   list(file = "R/99_session_info.R",
        what = "Record the software environment",              minutes = 1)
 )
@@ -60,7 +61,7 @@ for (i in seq_along(STEPS)) {
 
 cat(sprintf("\n=== COMPLETE in %.1f h ===\n",
             as.numeric(difftime(Sys.time(), t0, units = "hours"))))
-cat("Outputs: output/ (main benchmark), output_mechanism/ (supplement S4),\n")
+cat("Outputs: output/ (main benchmark), output_mechanism/ (Additional files 2 and 6),\n")
 cat("         docs/ENVIRONMENT.md (software record).\n")
 cat("\nOptional, not run automatically:\n")
 cat("  R/08_district_map.R   choropleth maps (needs sf + internet)\n")

@@ -1,7 +1,7 @@
 ###############################################################################
 #  04 — FINAL ANALYSES, DECISION GUIDE AND FIGURES
 #
-#  Run AFTER 03. Re-reads the result files, recomputes no imputation.
+#  Run AFTER 03 and 07: re-reads their result files, recomputes no imputation.
 #  Runtime: a few minutes.
 #
 #  Produces:
@@ -181,11 +181,12 @@ mean_sensitivity <- peaks |> filter(method == "Mean") |> pull(sensitivity) |> me
 #  VARIANCE PRESERVATION: read from the data, never asserted.
 #  An earlier version of this guide claimed that MICE was "the only family that
 #  preserves variance (ratio ~1)". The metrics say otherwise, and the reason is
-#  in functions.R: all three MICE variants return an AVERAGED completion
-#  (imp_mice_stochastic ends with Reduce(`+`, ...) / m). Averaging converges to
-#  the conditional expectation and shrinks variance by construction. What the
-#  var_ratio measures here is therefore the averaged ESTIMAND, not the ability
-#  of the MICE family to preserve a distribution. The row below is computed.
+#  in functions.R: the two pmm variants return an AVERAGED completion
+#  (imp_mice_stochastic ends with Reduce(`+`, ...) / m) and MICE-norm.predict
+#  imputes the regression prediction. Both converge to, or estimate, the
+#  conditional expectation and shrink variance by construction. What the
+#  var_ratio measures here is therefore that ESTIMAND, not the ability of the
+#  MICE family to preserve a distribution. The row below is computed.
 #  CONVENTION (decided 2026-10-10): each method is scored under its BEST
 #  predictor block, the block selected on MAE by 03 (selected_variant.csv).
 #  This is the convention of Table 1 and of ranks_by_metric.csv. An earlier
@@ -288,26 +289,75 @@ cat("\n--- Peak detection (Youden) by gap length ---\n")
 print(youden_by_gap |> filter(rank_youden <= 4), n = 20, width = Inf)
 print(paired_youden_tbl, width = Inf)
 
-#  SITUATIONS (revised 2026-10-13, step 8 of the revision).
-#  - Row 1 no longer says "data-entry errors (the common case)": the
-#    benchmark does not measure how often isolated gaps occur, nor why.
-#  - Row 2 no longer says "> 4 weeks": at 4 weeks the temporal methods still
-#    lead and the first three are not separable; 8 weeks is the only long gap
-#    length tested. It covers accuracy of counts only; peak detection is the
-#    next row. "Less robust under MNAR" is a pointer to Table 3 (mechanism
-#    arm), written as text because 07 runs after 04 in run_all.R, so the
-#    mechanism outputs cannot be read here in a run from scratch.
+#  SITUATIONS (revised 2026-10-19, step 8b of the revision, batch 7).
+#  The guide is written to match Table 5 of the paper, row by row. Every
+#  number is read from a result file or computed here from one; the method
+#  names that are not read from the results are fixed by the text of the
+#  paper.
+#  Row 2 quotes the reduced mechanism design (Table 4), so this script reads
+#  the outputs of 05 and 07: run_all.R runs 04 after them (and before 11,
+#  which reads youden_by_gap.csv written above).
+MMET <- file.path("output_mechanism", "metrics")
+fmt_p <- function(p) if (p < 0.001) "p < 0.001" else sprintf("p = %.2f", p)
+
+#  (i) Row 1. Kalman smoothing against linear interpolation, 1-week gaps,
+#  paired over the 60 blocks (repetition x rate). Same computation as
+#  paired_kalman_linearinterp.csv in R/11: the MAE gap is expressed
+#  relative to the MAE of the method that trails.
+kl <- metrics |>
+  filter(gap_length == 1, method %in% c("Kalman", "LinearInterp")) |>
+  inner_join(selected, by = c("method", "variant")) |>
+  select(rep, missing_rate, method, MAE) |>
+  pivot_wider(names_from = method, values_from = MAE)
+stopifnot(nrow(kl) == 60, !anyNA(kl$Kalman), !anyNA(kl$LinearInterp))
+kal_leads <- mean(kl$Kalman) < mean(kl$LinearInterp)
+kl_lead   <- if (kal_leads) kl$Kalman else kl$LinearInterp
+kl_trail  <- if (kal_leads) kl$LinearInterp else kl$Kalman
+kl_won    <- sum(kl_lead < kl_trail)
+kl_pct    <- 100 * (mean(kl_trail) - mean(kl_lead)) / mean(kl_trail)
+
+#  (ii) Row 2. MAE of the two forests at 8 weeks, seasonal and trend
+#  predictors (the block quoted in the row, as for mf and mfs above).
+forest_mae8 <- metrics |>
+  filter(gap_length == 8, method %in% c("MissForest_ST", "MissForest"),
+         variant == "SeasonalTrend") |>
+  group_by(method) |> summarise(MAE = mean(MAE), n = n(), .groups = "drop")
+stopifnot(nrow(forest_mae8) == 2, all(forest_mae8$n == 60))
+mae8_of <- function(m) forest_mae8$MAE[forest_mae8$method == m]
+
+#  (iii) Row 2. Reduced mechanism design, MNAR, 8-week gaps: mean ranks of
+#  the two forests (ranks_four_mechanisms.csv, written by 07) and Nemenyi
+#  critical difference with N = number of repetitions read from the metric
+#  file (same formula as section 2 above and as R/11, section 3). The gap
+#  compared with the CD is the distance from the lower-ranked forest to the
+#  best method under MNAR at 8 weeks.
+r4 <- read_csv(file.path(MMET, "ranks_four_mechanisms.csv"), show_col_types = FALSE)
+n_mnar <- read_csv(file.path(MMET, "metrics_mechanism.csv"), show_col_types = FALSE) |>
+  filter(mechanism == "MNAR", gap_length == 8) |>
+  distinct(rep) |> nrow()
+k_mech  <- nrow(r4)
+cd_mnar <- qtukey(0.95, k_mech, Inf) / sqrt(2) *
+           sqrt(k_mech * (k_mech + 1) / (6 * n_mnar))
+mnar_of  <- function(m) r4$MNAR_8[r4$method == m]
+mnar_gap <- max(mnar_of("MissForest_ST"), mnar_of("MissForest")) - min(r4$MNAR_8)
+cat(sprintf("\nMNAR, 8-week gaps: N = %d, CD = %.2f, gap to the best = %.2f\n",
+            n_mnar, cd_mnar, mnar_gap))
+
+#  (iv) Row 5. Time per imputed dataset, 1-week gaps, best block of each
+#  method (computational_cost.csv, section 3 above).
+sec_of <- function(m) cost$sec[cost$method == m]
+
 guide <- tibble(
   situation = c(
     "Isolated gaps (1 week)",
     "Prolonged gaps (8 weeks), accuracy of counts",
     "Priority on epidemic peak detection",
-    "Distributional fidelity required (variance preserved)",
-    "Modest hardware / limited technical skill",
-    "TO BE AVOIDED in all circumstances"),
+    "Distributional fidelity required (variance preserved), isolated gaps",
+    "Modest hardware or limited technical skills",
+    "To be avoided in all circumstances"),
   method = c(
-    "Linear interpolation or Kalman",
-    "MissForest-ST (or MissForest, less robust under MNAR), with seasonal and trend predictors",
+    "Linear interpolation or Kalman smoothing",
+    "MissForest-ST or MissForest, with seasonal and trend predictors",
     # tie at 1 week when the paired test does not separate the two best
     sprintf("%s (isolated gaps); %s (8-week gaps)",
             if (pair1$wilcoxon_p > 0.05)
@@ -315,32 +365,42 @@ guide <- tibble(
             else unname(DISPLAY[pair1$method_a]),
             unname(DISPLAY[pair8$method_a])),
     best_var,
-    "Linear interpolation",
+    "Linear interpolation (isolated gaps); Seasonal decomposition (8-week gaps)",
     "Mean imputation"),
   rationale = c(
-    sprintf("mean ranks %.2f and %.2f, not distinguishable from the best",
+    sprintf(paste("mean ranks %.2f and %.2f; %s beats %s in %d of %d blocks,",
+                  "with an MAE gap of %.1f%%"),
             ranks$mean_rank[ranks$method == "LinearInterp"],
-            ranks$mean_rank[ranks$method == "Kalman"]),
-    sprintf(paste("with 8-week gaps MissForest-ST moves from rank %d to %d and",
-                  "MissForest from rank %d to %d (of 24 method-variant",
-                  "combinations); best at 8 weeks: %s %s"),
+            ranks$mean_rank[ranks$method == "Kalman"],
+            if (kal_leads) "Kalman smoothing" else "linear interpolation",
+            if (kal_leads) "interpolation" else "Kalman smoothing",
+            kl_won, nrow(kl), kl_pct),
+    sprintf(paste("from 1 to 8 weeks, rank %d -> %d (MissForest-ST) and",
+                  "%d -> %d (MissForest) of 24 combinations, with close errors",
+                  "(%.1f and %.1f); under MNAR, descriptive ranks %.1f and %.1f",
+                  "over %d repetitions, gap %s the CD; mechanisms: Table 4;",
+                  "detection: next row"),
             mfs[1], mfs[2], mf[1], mf[2],
-            unname(DISPLAY[long_gap$method]), long_gap$variant) |>
-      paste0("; mechanism arm: see Table 3; peak detection: see the next row"),
-    sprintf(paste("isolated gaps: Youden %.3f and %.3f (paired Wilcoxon p = %.2f);",
-                  "8-week gaps: Youden %.3f against %.3f for %s, the most",
-                  "accurate method (higher in %d of %d blocks, p = %.1g)"),
-            pair1$youden_a, pair1$youden_b, pair1$wilcoxon_p,
+            mae8_of("MissForest_ST"), mae8_of("MissForest"),
+            mnar_of("MissForest_ST"), mnar_of("MissForest"), n_mnar,
+            if (mnar_gap < cd_mnar) "below" else "above"),
+    sprintf(paste("isolated gaps: Youden index %.3f and %.3f (paired Wilcoxon, %s);",
+                  "8-week gaps: %.3f against %.3f for %s (higher in %d of %d",
+                  "blocks, %s)"),
+            pair1$youden_a, pair1$youden_b, fmt_p(pair1$wilcoxon_p),
             pair8$youden_a, pair8$youden_b, unname(DISPLAY[pair8$method_b]),
-            pair8$blocks_a_higher, pair8$n_blocks, pair8$wilcoxon_p),
-    sprintf(paste("variance ratio %.3f (pooled over the eleven districts),",
-                  "closest to 1; the best MICE variant",
-                  "reaches only %.3f because every MICE variant scored here",
-                  "is an AVERAGED completion"),
+            pair8$blocks_a_higher, pair8$n_blocks, fmt_p(pair8$wilcoxon_p)),
+    sprintf(paste("variance ratio %.3f, closest to 1, computed over the eleven",
+                  "districts pooled, so it includes the level differences",
+                  "between districts; the best MICE variant reaches only %.3f,",
+                  "because the two pmm variants average their completions and",
+                  "MICE-norm.predict imputes the regression prediction, both of",
+                  "which shrink the variance"),
             best_var_val, best_mice$var_ratio[1]),
-    sprintf("%.2f s per imputation, no hyperparameter to tune", fastest$sec),
-    sprintf("sensitivity = %.3f: not a single epidemic peak detected",
-            mean_sensitivity))
+    sprintf(paste("%.2f and %.2f s per imputed dataset, no hyperparameter to",
+                  "tune, same R package (imputeTS)"),
+            sec_of("LinearInterp"), sec_of("SeasonalDecomp")),
+    sprintf("sensitivity = %.3f: no epidemic peak detected", mean_sensitivity))
 )
 cat("\n=== Decision guide ===\n"); print(guide, n = 20, width = Inf)
 write_csv(guide, file.path(MET, "decision_guide.csv"))

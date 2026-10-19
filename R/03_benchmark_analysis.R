@@ -364,7 +364,8 @@ forecast_rmse <- function(imputed_series, true_series, j) {
 }
 
 # Reference: trained AND evaluated on the complete, never-punched series.
-# This is the attainable error floor; any degradation must be >= 0.
+# Bilateral imputers can use the weeks being forecast, so a degradation can be
+# negative (Results 3.9; leakage diagnostic in R/11, section 10).
 ref_forecast <- map(seq_len(n_dis), ~ forecast_rmse(REF[, .x], REF[, .x], .x))
 ref_h52 <- map_dbl(ref_forecast, "h52")
 ref_h4  <- map_dbl(ref_forecast, "h4")

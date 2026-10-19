@@ -214,7 +214,8 @@ imp_mean <- function(X, P = NULL) {
   X
 }
 
-# Stochastic MICE (pmm): the CORRECT use of mice. Preserves the distribution.
+# Stochastic MICE (pmm): m completions drawn by pmm, then AVERAGED; the average
+# shrinks the variance (see the note on M_INFERENCE below).
 imp_mice_stochastic <- function(X, P = NULL, m = 5) {
   D   <- as.data.frame(X); if (!is.null(P)) D <- cbind(D, P)
   fit <- mice(D, m = m, maxit = 20, method = "pmm", printFlag = FALSE, seed = 1)
@@ -289,8 +290,9 @@ imp_missforest_st <- function(X, P = NULL) {
                        seed = 1)[, seq_len(ncol(X))])
 }
 
-M_INFERENCE <- 5    # m = 5  + Rubin's rules, WITHOUT averaging -> valid inference
-M_PRECISION <- 20   # m = 20 + averaged completions             -> point precision
+M_INFERENCE <- 5    # m = 5,  completions AVERAGED (label kept for compatibility;
+                    # no Rubin's rules are applied in this benchmark)
+M_PRECISION <- 20   # m = 20, completions averaged -> point precision
 # Measured: m = 1 gives MAE 78, m = 50 gives 44.6. Averaging the completions
 # converges to the conditional expectation, hence towards norm.predict.
 # This is not merely a tuning choice, it is a choice of estimand.

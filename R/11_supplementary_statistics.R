@@ -65,6 +65,8 @@
 #        last masked week of the 180 masks; mean rank, MAE and bias by
 #        mechanism and gap length (07, section 6, recomputed and checked).
 #    output/metrics/kalman_fallback_check.csv                    (12)
+#    output/metrics/forecast_refit_counts.csv                    (10, step 8b)
+#    output/metrics/achieved_precision_gap8.csv, peak_weeks_per_mask.csv (14)
 #        How often the first level of the Kalman cascade (StructTS) fails on
 #        the archived masks of the main benchmark and the mechanism arms.
 ###############################################################################
@@ -635,7 +637,17 @@ print(mcar_null, width = Inf)
 RUN_A3   <- TRUE
 LOOKBACK <- 4
 
+#  Step 8b (report R2-m11): the series whose fit with the reference ARIMA
+#  order fails, and which fall back to auto.arima, are recorded in A3_LOG as a
+#  side effect of the error handler. The forecasts themselves are unchanged.
+#  Skipped origins (refilter error) are the NA of sq_err. Since 03 uses the
+#  same code and the same single fit per series for both horizons, these
+#  counts are those of 03 as long as the fits reproduce (checked below).
+
 if (RUN_A3) {
+  A3_LOG <- new.env()
+  A3_LOG$current  <- "reference"
+  A3_LOG$fallback <- character(0)
   H_LONG <- 52; H_SHORT <- 4
   n_tr    <- n_obs - H_LONG
   origins <- seq(n_tr, n_obs - H_SHORT, by = H_SHORT)
@@ -651,7 +663,11 @@ if (RUN_A3) {
     tr  <- subset(y, end = n_tr)
     xr  <- fourier(tr, K = 2)
     fit <- tryCatch(Arima(tr, order = REF_ARIMA_ORDERS[[j]], xreg = xr),
-                    error = function(e) auto.arima(tr, xreg = xr, seasonal = FALSE))
+                    error = function(e) {
+                      A3_LOG$fallback <- c(A3_LOG$fallback,
+                                           paste(A3_LOG$current, j))
+                      auto.arima(tr, xreg = xr, seasonal = FALSE)
+                    })
     vapply(origins, function(t) {
       hist <- ts(series[1:t], frequency = 52)
       f <- tryCatch(Arima(hist, model = fit, xreg = fourier(hist, K = 2)),
@@ -674,6 +690,7 @@ if (RUN_A3) {
   t0 <- Sys.time()
   origin_err <- imap_dfr(files, function(f, i) {
     meta <- str_match(basename(f), FILE_PATTERN)
+    A3_LOG$current <- basename(f)
     rep_i <- as.integer(meta[2]); rate_i <- as.integer(meta[3])
     M <- readRDS(file.path(CFG$output_dir, "masks",
                            sprintf("mask_rep%02d_rate%02d_gap1.rds", rep_i, rate_i)))
@@ -767,6 +784,19 @@ if (RUN_A3) {
   write_csv(leak,         file.path(MET, "forecast_leakage_diagnostic.csv"))
   write_csv(leak_by_rate, file.path(MET, "forecast_leakage_by_rate.csv"))
   write_csv(leak_summary, file.path(MET, "forecast_leakage_summary.csv"))
+
+  # Step 8b (R2-m11): number of fits that fell back to auto.arima, and of
+  # 4-week origins skipped because the refilter failed.
+  is_ref <- startsWith(A3_LOG$fallback, "reference ")
+  refit_counts <- tibble(
+    scope = c("reference", "imputed"),
+    n_series = c(n_dis, length(files) * n_dis),
+    n_fit_fallback_auto_arima = c(sum(is_ref), sum(!is_ref)),
+    n_origins = c(length(ref_sq), nrow(origin_err)),
+    n_origins_skipped = c(sum(is.na(ref_sq)), sum(is.na(origin_err$sq_err))))
+  stopifnot(refit_counts$n_origins == refit_counts$n_series * length(origins))
+  write_csv(refit_counts, file.path(MET, "forecast_refit_counts.csv"))
+  print(refit_counts, width = Inf)
   print(leak, n = 30, width = Inf)
   print(leak_summary, width = Inf)
 }
@@ -1097,4 +1127,54 @@ forest_blk <- bind_rows(forest_blk)
 write_csv(forest_blk, file.path(MET, "paired_forest_blocks_gap8.csv"))
 print(forest_blk |> filter(comparator == "Kalman"), width = Inf)
 
-cat(sprintf("\n11 done: %d files written.\n", 9 + 3 + 3 + 1 + 3 + 1 + 4 + 1 + if (RUN_A3) 4 else 0))
+## -------------------------------------------------------------------------
+## 14. PRECISION OF THE 8-WEEK CONTRASTS AND PEAK WEEKS PER MASK
+##     (step 8b, lot 3: report claude/rapport_etape8b.md, R2-m6, R2-m10)
+## -------------------------------------------------------------------------
+#  NO imputation is recomputed: this section only re-reads metrics_long.csv.
+#  (a) R2-m6. Section 5 gives the achieved precision for an easy contrast
+#      (MissForest - LinearInterp, 1-week gaps, about 11.5 cases). Same
+#      computation (normal half-width, 1.96 x SD / sqrt(60)) for the two
+#      contrasts the 8-week conclusion rests on: MissForest-ST (SeasonalTrend)
+#      minus Kalman (NoTime), and MissForest-ST minus MissForest (both
+#      SeasonalTrend). Blocks = repetition x missingness rate (60).
+#  (b) R2-m10. n_peaks (functions.R, evaluate) is the number of masked cells,
+#      over the eleven districts, whose true value exceeds the district 90th
+#      percentile. It depends on the mask only, so it must be identical for
+#      the 24 combinations evaluated on one mask. It is summarised here by
+#      missingness rate and gap length (20 masks each).
+
+g8p <- metrics |>
+  filter(gap_length == 8,
+         (method == "Kalman" & variant == "NoTime") |
+         (method %in% c("MissForest_ST", "MissForest") & variant == "SeasonalTrend")) |>
+  select(rep, missing_rate, method, MAE) |>
+  pivot_wider(names_from = method, values_from = MAE)
+stopifnot(nrow(g8p) == 60, !anyNA(g8p))
+prec_one <- function(diff, label) tibble(
+  gap_length = 8, comparison = label,
+  mean_difference = mean(diff), sd_diff = sd(diff),
+  half_ci95 = 1.96 * sd(diff) / sqrt(length(diff)), n = length(diff))
+precision_gap8 <- bind_rows(
+  prec_one(g8p$MissForest_ST - g8p$Kalman,
+           "MissForest_ST SeasonalTrend - Kalman NoTime"),
+  prec_one(g8p$MissForest_ST - g8p$MissForest,
+           "MissForest_ST SeasonalTrend - MissForest SeasonalTrend"))
+
+peaks_mask <- metrics |>
+  group_by(rep, missing_rate, gap_length) |>
+  summarise(k = n_distinct(n_peaks), n_peaks = first(n_peaks), .groups = "drop")
+stopifnot(nrow(peaks_mask) == 180, all(peaks_mask$k == 1))
+peak_weeks <- peaks_mask |>
+  group_by(missing_rate, gap_length) |>
+  summarise(n_masks = n(), median_n_peaks = median(n_peaks),
+            min_n_peaks = min(n_peaks), max_n_peaks = max(n_peaks),
+            mean_n_peaks = mean(n_peaks), .groups = "drop")
+stopifnot(all(peak_weeks$n_masks == 20))
+
+write_csv(precision_gap8, file.path(MET, "achieved_precision_gap8.csv"))
+write_csv(peak_weeks,     file.path(MET, "peak_weeks_per_mask.csv"))
+print(precision_gap8, width = Inf)
+print(peak_weeks, width = Inf)
+
+cat(sprintf("\n11 done: %d files written.\n", 9 + 3 + 3 + 1 + 3 + 1 + 4 + 1 + 2 + if (RUN_A3) 5 else 0))

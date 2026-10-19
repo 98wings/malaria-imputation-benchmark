@@ -177,8 +177,7 @@ with open(NOTE, 'w', encoding='utf-8') as f:
         "  weeks absent from that file : %s (taken from the article's reference).\n\n"
         "2023-2025 : appended from raw/malaria_2021_2025_fusionne.csv (%d weeks).\n"
         "Dropped   : district Mayo-Baleo (no value in 2021-2022, zeros in 2023-2025).\n\n"
-        "Status: the article and its results still use reference_adamaoua_weekly_2018_2022.csv.\n"
-        "The benchmark has NOT been rerun on the corrected series.\n"
+        "Status: the article and all its results use reference_adamaoua_weekly_2018_2025.csv (417 weeks).\n"
         % (len(ref22), fmt(ref22.index[0]), fmt(ref22.index[-1]),
            len(ref25), fmt(ref25.index[0]), fmt(ref25.index[-1]),
            len(districts), len(districts), int(ref22.values.sum()),

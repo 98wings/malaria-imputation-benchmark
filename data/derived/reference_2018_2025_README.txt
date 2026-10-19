@@ -26,5 +26,4 @@ Defect corrected
 2023-2025 : appended from raw/malaria_2021_2025_fusionne.csv (156 weeks).
 Dropped   : district Mayo-Baleo (no value in 2021-2022, zeros in 2023-2025).
 
-Status: the article and its results still use reference_adamaoua_weekly_2018_2022.csv.
-The benchmark has NOT been rerun on the corrected series.
+Status: the article and all its results use reference_adamaoua_weekly_2018_2025.csv (417 weeks).

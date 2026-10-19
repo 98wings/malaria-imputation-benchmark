@@ -28,8 +28,8 @@ source("R/functions.R")
 res_global <- list(); res_district <- list(); res_valid <- list()
 res_hp <- list(); k <- 0
 
-# gap_length = 1     : primary analysis (typing-error mechanism)
-# gap_length = 4, 8  : sensitivity analysis (prolonged non-reporting)
+# gap_length = 1, 4, 8 : design factor (isolated gaps, short and prolonged
+#                        interruptions of reporting); 1 week is the reference condition
 for (gap in CFG$gap_lengths) {
 for (rep in seq_len(CFG$n_rep)) {
   for (rate in CFG$missing_rates) {

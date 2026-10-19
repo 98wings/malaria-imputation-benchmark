@@ -119,6 +119,17 @@ the reference series is in place. Software versions are listed in
 
 ---
 
+## What can be checked without the data
+
+The scripts read the reference series when they start, so they do not run without it.
+The aggregated outputs are enough to recompute the rankings, the Friedman and Nemenyi
+tests, the excess-change measure and the paired comparisons:
+`output/metrics/metrics_long.csv` (one row per repetition, rate, gap length and
+method-predictor combination) and `output/metrics/selected_variant.csv`.
+`output/metrics/peak_weeks_per_mask.csv` gives only a summary by rate and gap length.
+
+---
+
 ## Licence
 
 Code: MIT (see `LICENSE`). The licence does not cover the DHIS2 data, which are
