@@ -26,6 +26,12 @@ characteristics <- read_csv("data/derived/reference_characteristics.csv",
                             show_col_types = FALSE)
 ranks           <- read_csv(file.path(MET, "friedman_ranks_main.csv"), show_col_types = FALSE)
 
+# Number of blocks (missingness rate x repetition) expected in every
+# per-cell summary below: 60 at n_rep = 20, 6 in a dry run at n_rep = 2.
+# Read from the metrics rather than written as 60, so that the checks hold
+# whatever CFG$n_rep was used in 02 (this script does not load functions.R).
+N_BLOCKS <- n_distinct(metrics$missing_rate) * n_distinct(metrics$rep)
+
 UNIVARIATE <- c("LinearInterp", "Kalman", "SeasonalDecomp")
 FAMILY <- c(Mean = "Naive",
             MICE_inference = "Cross-sectional", MICE_precision = "Cross-sectional",
@@ -249,7 +255,7 @@ youden_by_gap <- metrics |>
   group_by(gap_length) |>
   mutate(rank_youden = rank(-youden), rank_MAE = rank(MAE)) |>
   ungroup() |> arrange(gap_length, rank_youden)
-stopifnot(all(youden_by_gap$n_blocks == 60))
+stopifnot(all(youden_by_gap$n_blocks == N_BLOCKS))
 write_csv(youden_by_gap, file.path(MET, "youden_by_gap.csv"))
 
 #  Paired comparisons of the Youden index over the 60 blocks (same model as
@@ -266,7 +272,7 @@ paired_youden <- function(gap, m_a, m_b) {
     pivot_wider(names_from = method, values_from = c(youden, MAE))
   ya <- d[[paste0("youden_", m_a)]]; yb <- d[[paste0("youden_", m_b)]]
   ma <- d[[paste0("MAE_", m_a)]];    mb <- d[[paste0("MAE_", m_b)]]
-  stopifnot(nrow(d) == 60, !anyNA(ya), !anyNA(yb))
+  stopifnot(nrow(d) == N_BLOCKS, !anyNA(ya), !anyNA(yb))
   wt <- suppressWarnings(wilcox.test(ya, yb, paired = TRUE))
   nz <- sum(ya != yb)
   bt <- binom.test(sum(ya > yb), nz, p = 0.5)
@@ -309,7 +315,7 @@ kl <- metrics |>
   inner_join(selected, by = c("method", "variant")) |>
   select(rep, missing_rate, method, MAE) |>
   pivot_wider(names_from = method, values_from = MAE)
-stopifnot(nrow(kl) == 60, !anyNA(kl$Kalman), !anyNA(kl$LinearInterp))
+stopifnot(nrow(kl) == N_BLOCKS, !anyNA(kl$Kalman), !anyNA(kl$LinearInterp))
 kal_leads <- mean(kl$Kalman) < mean(kl$LinearInterp)
 kl_lead   <- if (kal_leads) kl$Kalman else kl$LinearInterp
 kl_trail  <- if (kal_leads) kl$LinearInterp else kl$Kalman
@@ -322,7 +328,7 @@ forest_mae8 <- metrics |>
   filter(gap_length == 8, method %in% c("MissForest_ST", "MissForest"),
          variant == "SeasonalTrend") |>
   group_by(method) |> summarise(MAE = mean(MAE), n = n(), .groups = "drop")
-stopifnot(nrow(forest_mae8) == 2, all(forest_mae8$n == 60))
+stopifnot(nrow(forest_mae8) == 2, all(forest_mae8$n == N_BLOCKS))
 mae8_of <- function(m) forest_mae8$MAE[forest_mae8$method == m]
 
 #  (iii) Row 2. Reduced mechanism design, MNAR, 8-week gaps: mean ranks of

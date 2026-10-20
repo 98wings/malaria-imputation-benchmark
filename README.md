@@ -73,8 +73,6 @@ malaria-imputation-benchmark/
 │   ├── 05_mechanism_sensitivity.R  MAR and MNAR arms
 │   ├── 06_mechanism_diagnostics.R  mechanism diagnostics
 │   ├── 07_mar_strong_arm.R         strong MAR arm
-│   ├── 08_district_map.R           optional maps (boundaries not included)
-│   ├── 09_explore.R                helpers to inspect the data
 │   ├── 10_example_series.R         imputed series of the example figure
 │   ├── 11_supplementary_statistics.R  supplementary statistics
 │   └── 99_session_info.R           records the software environment

@@ -21,10 +21,6 @@ pkgs <- c(
   "tictoc", "openxlsx", "ggrepel"
 )
 
-# Optional: only needed for the choropleth map in 08_district_map.R.
-# Installing sf can be slow on Windows; skip it if you are not making the map.
-optional_pkgs <- c("sf", "spdep", "httr")
-
 missing <- pkgs[!pkgs %in% rownames(installed.packages())]
 
 if (length(missing) == 0) {
@@ -41,11 +37,6 @@ ok <- vapply(pkgs, function(p) {
   cat(sprintf("  %-14s %s\n", p, ifelse(r, "OK", "FAILED")))
   r
 }, logical(1))
-
-cat("\n--- Optional (map only) ---\n")
-for (p in optional_pkgs)
-  cat(sprintf("  %-14s %s\n", p,
-              ifelse(requireNamespace(p, quietly = TRUE), "OK", "not installed")))
 
 if (all(ok)) {
   cat("\nEverything is ready. You can now run R/01_build_reference.R\n")

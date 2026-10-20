@@ -10,12 +10,15 @@
 #      source("run_all.R")
 #
 #  TOTAL RUNTIME at CFG$n_rep = 20: roughly 7 hours.
-#  For a dry run, set CFG$n_rep = 2 in R/functions.R first (~30 min).
+#  For a dry run, set CFG$n_rep = 2 in R/functions.R first: roughly 2.5 to
+#  3 hours, because the mechanism arms (R/05, R/07) keep CFG_MECH$n_rep = 10;
+#  roughly 1.5 hours if CFG_MECH$n_rep is also set to 2 in
+#  R/functions_mechanism.R.
 #
-#  Steps 4 to 7 are the reduced mechanism design (Additional files 2 and 6).
-#  Step 8 (R/04) comes after them because its decision guide quotes the
-#  reduced mechanism design. The choropleth map (R/08) is optional and not
-#  run here: it needs `sf` and an internet connection.
+#  Step 4 (R/10) re-imputes the single example dataset drawn in the
+#  illustrative figure. Steps 5 to 8 are the reduced mechanism design
+#  (Additional files 2 and 6). Step 9 (R/04) comes after them because its
+#  decision guide quotes the reduced mechanism design.
 ###############################################################################
 
 STEPS <- list(
@@ -25,6 +28,8 @@ STEPS <- list(
        what = "Run the benchmark (masks, imputations, metrics)", minutes = 300),
   list(file = "R/03_benchmark_analysis.R",
        what = "Analysis, statistical tests, downstream forecasting", minutes = 60),
+  list(file = "R/10_example_series.R",
+       what = "Example imputed series for the illustrative figure", minutes = 2),
   list(file = "R/05_mechanism_sensitivity.R",
        what = "Mechanism sensitivity: MAR and MNAR arms",      minutes = 75),
   list(file = "R/06_mechanism_diagnostics.R",
@@ -63,6 +68,3 @@ cat(sprintf("\n=== COMPLETE in %.1f h ===\n",
             as.numeric(difftime(Sys.time(), t0, units = "hours"))))
 cat("Outputs: output/ (main benchmark), output_mechanism/ (Additional files 2 and 6),\n")
 cat("         docs/ENVIRONMENT.md (software record).\n")
-cat("\nOptional, not run automatically:\n")
-cat("  R/08_district_map.R   choropleth maps (needs sf + internet)\n")
-cat("  R/09_explore.R        interactive helpers for looking at the data\n")

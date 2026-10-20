@@ -73,6 +73,12 @@
 
 source("R/functions_mechanism.R")
 MET  <- file.path("output", "metrics")
+# Expected sizes of the main design, from the configuration in functions.R:
+# blocks = missingness rate x repetition (60 at n_rep = 20), masks = blocks x
+# gap length (180). Used by the checks below instead of literal 60, 180, 20,
+# so that a dry run at CFG$n_rep = 2 goes through.
+N_BLOCKS <- length(CFG$missing_rates) * CFG$n_rep
+N_MASKS  <- N_BLOCKS * length(CFG$gap_lengths)
 MMET <- file.path(DOS_MECH, "metrics")
 
 ## -------------------------------------------------------------------------
@@ -172,7 +178,7 @@ pair <- metrics |>
   select(rep, missing_rate, method, MAE) |>
   pivot_wider(names_from = method, values_from = MAE) |>
   mutate(diff = MissForest_ST - Kalman)
-stopifnot(nrow(pair) == 60, !anyNA(pair$diff))
+stopifnot(nrow(pair) == N_BLOCKS, !anyNA(pair$diff))
 wt <- wilcox.test(pair$MissForest_ST, pair$Kalman, paired = TRUE)
 bt <- binom.test(sum(pair$diff < 0), nrow(pair), p = 0.5)
 paired <- tibble(
@@ -200,7 +206,7 @@ achieved_precision <- metrics |>
             comparison = "MissForest - LinearInterp",
             mean_difference = mean(diff), sd_diff = sd(diff),
             half_ci95 = 1.96 * sd(diff) / sqrt(n()), n = n())
-stopifnot(achieved_precision$n == 60)
+stopifnot(achieved_precision$n == N_BLOCKS)
 write_csv(achieved_precision, file.path(MET, "achieved_precision.csv"))
 print(achieved_precision, width = Inf)
 
@@ -1021,7 +1027,7 @@ fried_nt <- list(); ranks_nt <- list(); pairs_nt <- list(); kal_li <- list()
 for (gap in CFG$gap_lengths) {
   dg  <- metrics |> filter(gap_length == gap, variant == "NoTime")
   mat <- fr_matrix(dg)
-  stopifnot(ncol(mat) == 10, nrow(mat) == 60, !anyNA(mat))
+  stopifnot(ncol(mat) == 10, nrow(mat) == N_BLOCKS, !anyNA(mat))
   k   <- ncol(mat); N <- nrow(mat)
   cd  <- qtukey(0.95, k, Inf) / sqrt(2) * sqrt(k * (k + 1) / (6 * N))
   ft  <- friedman.test(mat)
@@ -1048,7 +1054,7 @@ for (gap in CFG$gap_lengths) {
     select(rep, missing_rate, method, MAE) |>
     pivot_wider(names_from = method, values_from = MAE) |>
     mutate(diff = Kalman - LinearInterp)
-  stopifnot(nrow(kl) == 60, !anyNA(kl$diff))
+  stopifnot(nrow(kl) == N_BLOCKS, !anyNA(kl$diff))
   wt <- wilcox.test(kl$Kalman, kl$LinearInterp, paired = TRUE)
   bt <- binom.test(sum(kl$diff < 0), sum(kl$diff != 0), p = 0.5)
   kal_li[[length(kal_li) + 1]] <- tibble(
@@ -1102,14 +1108,14 @@ ref <- g8 |>
          variant == "NoTime") |>
   select(rep, missing_rate, method, MAE) |>
   pivot_wider(names_from = method, values_from = MAE)
-stopifnot(nrow(ref) == 60, !anyNA(ref))
+stopifnot(nrow(ref) == N_BLOCKS, !anyNA(ref))
 forest_blk <- list()
 for (me in c("MissForest", "MissForest_ST")) {
   for (v in c("NoTime", "Seasonal", "SeasonalTrend")) {
     d <- g8 |> filter(method == me, variant == v) |>
       select(rep, missing_rate, MAE) |>
       inner_join(ref, by = c("rep", "missing_rate"))
-    stopifnot(nrow(d) == 60, !anyNA(d))
+    stopifnot(nrow(d) == N_BLOCKS, !anyNA(d))
     for (cmp in c("Kalman", "LinearInterp", "SeasonalDecomp")) {
       diff <- d$MAE - d[[cmp]]
       forest_blk[[length(forest_blk) + 1]] <- tibble(
@@ -1150,7 +1156,7 @@ g8p <- metrics |>
          (method %in% c("MissForest_ST", "MissForest") & variant == "SeasonalTrend")) |>
   select(rep, missing_rate, method, MAE) |>
   pivot_wider(names_from = method, values_from = MAE)
-stopifnot(nrow(g8p) == 60, !anyNA(g8p))
+stopifnot(nrow(g8p) == N_BLOCKS, !anyNA(g8p))
 prec_one <- function(diff, label) tibble(
   gap_length = 8, comparison = label,
   mean_difference = mean(diff), sd_diff = sd(diff),
@@ -1164,13 +1170,13 @@ precision_gap8 <- bind_rows(
 peaks_mask <- metrics |>
   group_by(rep, missing_rate, gap_length) |>
   summarise(k = n_distinct(n_peaks), n_peaks = first(n_peaks), .groups = "drop")
-stopifnot(nrow(peaks_mask) == 180, all(peaks_mask$k == 1))
+stopifnot(nrow(peaks_mask) == N_MASKS, all(peaks_mask$k == 1))
 peak_weeks <- peaks_mask |>
   group_by(missing_rate, gap_length) |>
   summarise(n_masks = n(), median_n_peaks = median(n_peaks),
             min_n_peaks = min(n_peaks), max_n_peaks = max(n_peaks),
             mean_n_peaks = mean(n_peaks), .groups = "drop")
-stopifnot(all(peak_weeks$n_masks == 20))
+stopifnot(all(peak_weeks$n_masks == CFG$n_rep))
 
 write_csv(precision_gap8, file.path(MET, "achieved_precision_gap8.csv"))
 write_csv(peak_weeks,     file.path(MET, "peak_weeks_per_mask.csv"))
